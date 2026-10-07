@@ -7,41 +7,41 @@ namespace FileSync
 {
     internal sealed class FolderComparisonController : IDisposable
     {
-        private readonly DataGrid sourceGrid;
-        private readonly DataGrid destinationGrid;
-        private CancellationTokenSource? scanCancellation;
-        private Comparison? latestComparison;
-        private string sortMember = nameof(FolderComparisonRow.RelativePath);
-        private ListSortDirection sortDirection = ListSortDirection.Ascending;
-        private bool sortFromSource = true;
-        private bool disposed;
+        private readonly DataGrid _sourceGrid;
+        private readonly DataGrid _destinationGrid;
+        private CancellationTokenSource? _scanCancellation;
+        private Comparison? _latestComparison;
+        private string _sortMember = nameof(FolderComparisonRow.RelativePath);
+        private ListSortDirection _sortDirection = ListSortDirection.Ascending;
+        private bool _sortFromSource = true;
+        private bool _disposed;
 
-        public IReadOnlyList<FolderComparisonRow> SourceRows => latestComparison?.Source ?? [];
-        public IReadOnlyList<FolderComparisonRow> DestinationRows => latestComparison?.Destination ?? [];
+        public IReadOnlyList<FolderComparisonRow> SourceRows => _latestComparison?.Source ?? [];
+        public IReadOnlyList<FolderComparisonRow> DestinationRows => _latestComparison?.Destination ?? [];
 
         public FolderComparisonController(DataGrid sourceGrid, DataGrid destinationGrid)
         {
-            this.sourceGrid = sourceGrid;
-            this.destinationGrid = destinationGrid;
+            this._sourceGrid = sourceGrid;
+            this._destinationGrid = destinationGrid;
         }
 
         public void Clear()
         {
             CancelScan();
-            latestComparison = null;
-            sourceGrid.ItemsSource = null;
-            destinationGrid.ItemsSource = null;
+            _latestComparison = null;
+            _sourceGrid.ItemsSource = null;
+            _destinationGrid.ItemsSource = null;
         }
 
         public void SwitchSides()
         {
             CancelScan();
-            if (latestComparison is not { } comparison)
+            if (_latestComparison is not { } comparison)
             {
                 return;
             }
 
-            latestComparison = new Comparison(
+            _latestComparison = new Comparison(
                 comparison.Destination.Select(row => row.FullPath is null && row.Status == "Missing"
                     ? row with { Message = "This entry is missing from the source folder." } : row).ToList(),
                 comparison.Source.Select(row => row.FullPath is null && row.Status == "Missing"
@@ -51,23 +51,23 @@ namespace FileSync
 
         public void Sort(string member, ListSortDirection direction, bool fromSource)
         {
-            sortMember = member;
-            sortDirection = direction;
-            sortFromSource = fromSource;
+            _sortMember = member;
+            _sortDirection = direction;
+            _sortFromSource = fromSource;
             ApplyComparison();
         }
 
         private void ApplyComparison()
         {
-            if (latestComparison is not { } comparison)
+            if (_latestComparison is not { } comparison)
             {
                 return;
             }
 
-            var selectedSource = (sourceGrid.SelectedItem as FolderComparisonRow)?.RelativePath;
-            var selectedDestination = (destinationGrid.SelectedItem as FolderComparisonRow)?.RelativePath;
-            var primary = sortFromSource ? comparison.Source : comparison.Destination;
-            var secondary = sortFromSource ? comparison.Destination : comparison.Source;
+            var selectedSource = (_sourceGrid.SelectedItem as FolderComparisonRow)?.RelativePath;
+            var selectedDestination = (_destinationGrid.SelectedItem as FolderComparisonRow)?.RelativePath;
+            var primary = _sortFromSource ? comparison.Source : comparison.Destination;
+            var secondary = _sortFromSource ? comparison.Destination : comparison.Source;
             if (primary.Count == 0)
             {
                 primary = secondary;
@@ -76,11 +76,11 @@ namespace FileSync
             var counterparts = secondary.ToDictionary(row => row.RelativePath, StringComparer.OrdinalIgnoreCase);
             var comparer = Comparer<FolderComparisonRow>.Create((left, right) =>
             {
-                var leftValue = left.FullPath is null && sortMember != nameof(FolderComparisonRow.Status)
+                var leftValue = left.FullPath is null && _sortMember != nameof(FolderComparisonRow.Status)
                     ? counterparts.GetValueOrDefault(left.RelativePath, left) : left;
-                var rightValue = right.FullPath is null && sortMember != nameof(FolderComparisonRow.Status)
+                var rightValue = right.FullPath is null && _sortMember != nameof(FolderComparisonRow.Status)
                     ? counterparts.GetValueOrDefault(right.RelativePath, right) : right;
-                var result = sortMember switch
+                var result = _sortMember switch
                 {
                     nameof(FolderComparisonRow.SizeBytes) => Nullable.Compare(leftValue.SizeBytes, rightValue.SizeBytes),
                     nameof(FolderComparisonRow.LastWriteTimeUtc) => Nullable.Compare(leftValue.LastWriteTimeUtc, rightValue.LastWriteTimeUtc),
@@ -90,7 +90,7 @@ namespace FileSync
                 };
                 if (result != 0)
                 {
-                    return sortDirection == ListSortDirection.Ascending ? result : -result;
+                    return _sortDirection == ListSortDirection.Ascending ? result : -result;
                 }
 
                 return StringComparer.OrdinalIgnoreCase.Compare(left.RelativePath, right.RelativePath);
@@ -100,22 +100,22 @@ namespace FileSync
                 .ToDictionary(item => item.RelativePath, item => item.Index, StringComparer.OrdinalIgnoreCase);
             var sourceRows = comparison.Source.OrderBy(row => order[row.RelativePath]).ToList();
             var destinationRows = comparison.Destination.OrderBy(row => order[row.RelativePath]).ToList();
-            sourceGrid.ItemsSource = sourceRows;
-            destinationGrid.ItemsSource = destinationRows;
-            sourceGrid.SelectedItem = sourceRows.FirstOrDefault(row => row.RelativePath == selectedSource);
-            destinationGrid.SelectedItem = destinationRows.FirstOrDefault(row => row.RelativePath == selectedDestination);
+            _sourceGrid.ItemsSource = sourceRows;
+            _destinationGrid.ItemsSource = destinationRows;
+            _sourceGrid.SelectedItem = sourceRows.FirstOrDefault(row => row.RelativePath == selectedSource);
+            _destinationGrid.SelectedItem = destinationRows.FirstOrDefault(row => row.RelativePath == selectedDestination);
         }
 
         public async Task ScanAsync(string sourcePath, string destinationPath)
         {
-            if (disposed)
+            if (_disposed)
             {
                 return;
             }
 
             Clear();
             var cancellation = new CancellationTokenSource();
-            scanCancellation = cancellation;
+            _scanCancellation = cancellation;
             var token = cancellation.Token;
             var source = sourcePath.Trim();
             var destination = destinationPath.Trim();
@@ -123,14 +123,14 @@ namespace FileSync
             try
             {
                 var comparison = await Task.Run(() => CompareFolders(source, destination, token), token).ConfigureAwait(false);
-                await sourceGrid.Dispatcher.InvokeAsync(() =>
+                await _sourceGrid.Dispatcher.InvokeAsync(() =>
                 {
-                    if (disposed || token.IsCancellationRequested)
+                    if (_disposed || token.IsCancellationRequested)
                     {
                         return;
                     }
 
-                    latestComparison = comparison;
+                    _latestComparison = comparison;
                     ApplyComparison();
                 });
             }
@@ -139,15 +139,15 @@ namespace FileSync
             }
             finally
             {
-                if (!sourceGrid.Dispatcher.HasShutdownStarted)
+                if (!_sourceGrid.Dispatcher.HasShutdownStarted)
                 {
                     try
                     {
-                        await sourceGrid.Dispatcher.InvokeAsync(() =>
+                        await _sourceGrid.Dispatcher.InvokeAsync(() =>
                         {
-                            if (ReferenceEquals(scanCancellation, cancellation))
+                            if (ReferenceEquals(_scanCancellation, cancellation))
                             {
-                                scanCancellation = null;
+                                _scanCancellation = null;
                             }
                         });
                     }
@@ -335,13 +335,13 @@ namespace FileSync
 
         private void CancelScan()
         {
-            scanCancellation?.Cancel();
-            scanCancellation = null;
+            _scanCancellation?.Cancel();
+            _scanCancellation = null;
         }
 
         public void Dispose()
         {
-            disposed = true;
+            _disposed = true;
             CancelScan();
         }
 

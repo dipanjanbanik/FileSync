@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <Resource Include="ImagesAndDocuments\ICOFiles\app_icon.ico" />
+    <Resource Include="ImagesAndDocuments\ICOFiles\flip_source_dest.ico" />
     <Resource Include=".github\workflows\windows-build.yml" />
   </ItemGroup>
 

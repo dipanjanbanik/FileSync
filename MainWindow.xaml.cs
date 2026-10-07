@@ -22,15 +22,15 @@ namespace FileSync
     /// </summary>
     public partial class MainWindow : Window
     {
-        private readonly FolderComparisonController comparisonController;
-        private ScrollViewer? sourceScrollViewer;
-        private ScrollViewer? destinationScrollViewer;
-        private readonly Dictionary<ScrollViewer, (double Horizontal, double Vertical)> pendingScrollOffsets = new();
-        private bool scanning;
-        private bool switchingPaths;
-        private readonly ObservableCollection<SynchronizationLogEntry> activityLog = new();
-        private CancellationTokenSource? synchronizationCancellation;
-        private (int Pending, int Ongoing, int Failed, int Success, int Overwritten, int New, int Deleted, int Skipped) synchronizationCounts;
+        private readonly FolderComparisonController _comparisonController;
+        private ScrollViewer? _sourceScrollViewer;
+        private ScrollViewer? _destinationScrollViewer;
+        private readonly Dictionary<ScrollViewer, (double Horizontal, double Vertical)> _pendingScrollOffsets = new();
+        private bool _scanning;
+        private bool _switchingPaths;
+        private readonly ObservableCollection<SynchronizationLogEntry> _activityLog = new();
+        private CancellationTokenSource? _synchronizationCancellation;
+        private (int Pending, int Ongoing, int Failed, int Success, int Overwritten, int New, int Deleted, int Skipped) _synchronizationCounts;
 
         public MainWindow()
         {
@@ -38,8 +38,8 @@ namespace FileSync
             ApplicationVersionTextBlock.Text = $"Version {typeof(MainWindow).Assembly.GetName().Version}";
             SynchronizationRuleComboBox.ItemsSource = SynchronizationRules.Options;
             SynchronizationRuleComboBox.SelectedIndex = 0;
-            comparisonController = new FolderComparisonController(SourceFilesDataGrid, DestinationFilesDataGrid);
-            ActivityLogDataGrid.ItemsSource = activityLog;
+            _comparisonController = new FolderComparisonController(SourceFilesDataGrid, DestinationFilesDataGrid);
+            ActivityLogDataGrid.ItemsSource = _activityLog;
             UpdateScanButton();
         }
 
@@ -49,7 +49,7 @@ namespace FileSync
             var direction = e.Column.SortDirection == ListSortDirection.Ascending
                 ? ListSortDirection.Descending : ListSortDirection.Ascending;
             var member = e.Column.SortMemberPath;
-            comparisonController.Sort(member, direction, ReferenceEquals(sender, SourceFilesDataGrid));
+            _comparisonController.Sort(member, direction, ReferenceEquals(sender, SourceFilesDataGrid));
 
             foreach (var grid in new[] { SourceFilesDataGrid, DestinationFilesDataGrid })
             {
@@ -66,16 +66,16 @@ namespace FileSync
             var viewer = grid.Template.FindName("DG_ScrollViewer", grid) as ScrollViewer ?? FindScrollViewer(grid);
             if (ReferenceEquals(grid, SourceFilesDataGrid))
             {
-                sourceScrollViewer = viewer;
+                _sourceScrollViewer = viewer;
             }
             else
             {
-                destinationScrollViewer = viewer;
+                _destinationScrollViewer = viewer;
             }
 
             if (LockScrollBarCheckBox.IsChecked == true)
             {
-                SynchronizeScroll(sourceScrollViewer, destinationScrollViewer);
+                SynchronizeScroll(_sourceScrollViewer, _destinationScrollViewer);
             }
         }
 
@@ -101,18 +101,18 @@ namespace FileSync
 
         private void LockScrollBarChecked(object sender, RoutedEventArgs e)
         {
-            SynchronizeScroll(sourceScrollViewer, destinationScrollViewer);
+            SynchronizeScroll(_sourceScrollViewer, _destinationScrollViewer);
         }
 
         private void ComparisonGridScrollChanged(object sender, ScrollChangedEventArgs e)
         {
             if (e.OriginalSource is not ScrollViewer viewer
-                || (!ReferenceEquals(viewer, sourceScrollViewer) && !ReferenceEquals(viewer, destinationScrollViewer)))
+                || (!ReferenceEquals(viewer, _sourceScrollViewer) && !ReferenceEquals(viewer, _destinationScrollViewer)))
             {
                 return;
             }
 
-            if (pendingScrollOffsets.Remove(viewer, out var pending)
+            if (_pendingScrollOffsets.Remove(viewer, out var pending)
                 && Math.Abs(viewer.HorizontalOffset - pending.Horizontal) < 0.01
                 && Math.Abs(viewer.VerticalOffset - pending.Vertical) < 0.01)
             {
@@ -124,7 +124,7 @@ namespace FileSync
                 return;
             }
 
-            SynchronizeScroll(viewer, ReferenceEquals(viewer, sourceScrollViewer) ? destinationScrollViewer : sourceScrollViewer);
+            SynchronizeScroll(viewer, ReferenceEquals(viewer, _sourceScrollViewer) ? _destinationScrollViewer : _sourceScrollViewer);
         }
 
         private void SynchronizeScroll(ScrollViewer? origin, ScrollViewer? target)
@@ -142,26 +142,26 @@ namespace FileSync
             }
 
             var pending = (Horizontal: horizontal, Vertical: vertical);
-            pendingScrollOffsets[target] = pending;
+            _pendingScrollOffsets[target] = pending;
             target.ScrollToHorizontalOffset(horizontal);
             target.ScrollToVerticalOffset(vertical);
             Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
             {
-                if (pendingScrollOffsets.TryGetValue(target, out var current) && current == pending)
+                if (_pendingScrollOffsets.TryGetValue(target, out var current) && current == pending)
                 {
-                    pendingScrollOffsets.Remove(target);
+                    _pendingScrollOffsets.Remove(target);
                 }
             }));
         }
 
         private void FolderPathChanged(object sender, TextChangedEventArgs e)
         {
-            if (switchingPaths)
+            if (_switchingPaths)
             {
                 return;
             }
 
-            comparisonController?.Clear();
+            _comparisonController?.Clear();
             UpdateScanButton();
         }
 
@@ -174,12 +174,12 @@ namespace FileSync
                 return;
             }
 
-            var busy = scanning || synchronizationCancellation is not null;
+            var busy = _scanning || _synchronizationCancellation is not null;
             var validPaths = Directory.Exists(SourcePathTextBox.Text.Trim())
                 && Directory.Exists(DestinationPathTextBox.Text.Trim());
             ScanButton.IsEnabled = !busy && validPaths;
             StartButton.IsEnabled = !busy && validPaths;
-            StopButton.IsEnabled = synchronizationCancellation is { IsCancellationRequested: false };
+            StopButton.IsEnabled = _synchronizationCancellation is { IsCancellationRequested: false };
             SourcePathTextBox.IsEnabled = !busy;
             DestinationPathTextBox.IsEnabled = !busy;
             BrowseSourceButton.IsEnabled = !busy;
@@ -190,27 +190,27 @@ namespace FileSync
 
         private void ResetSynchronizationCounters(int pending = 0)
         {
-            synchronizationCounts = (pending, 0, 0, 0, 0, 0, 0, 0);
+            _synchronizationCounts = (pending, 0, 0, 0, 0, 0, 0, 0);
             RefreshSynchronizationCounters();
         }
 
         private void RefreshSynchronizationCounters()
         {
-            PendingCountRun.Text = synchronizationCounts.Pending.ToString();
-            OngoingCountRun.Text = synchronizationCounts.Ongoing.ToString();
-            FailedCountRun.Text = synchronizationCounts.Failed.ToString();
-            SuccessCountRun.Text = synchronizationCounts.Success.ToString();
-            OverwrittenCountRun.Text = synchronizationCounts.Overwritten.ToString();
-            NewCountRun.Text = synchronizationCounts.New.ToString();
-            DeletedCountRun.Text = synchronizationCounts.Deleted.ToString();
-            SkippedCountRun.Text = synchronizationCounts.Skipped.ToString();
+            PendingCountRun.Text = _synchronizationCounts.Pending.ToString();
+            OngoingCountRun.Text = _synchronizationCounts.Ongoing.ToString();
+            FailedCountRun.Text = _synchronizationCounts.Failed.ToString();
+            SuccessCountRun.Text = _synchronizationCounts.Success.ToString();
+            OverwrittenCountRun.Text = _synchronizationCounts.Overwritten.ToString();
+            NewCountRun.Text = _synchronizationCounts.New.ToString();
+            DeletedCountRun.Text = _synchronizationCounts.Deleted.ToString();
+            SkippedCountRun.Text = _synchronizationCounts.Skipped.ToString();
         }
 
         private void AppendSynchronizationEntry(SynchronizationLogEntry entry)
         {
-            activityLog.Add(entry);
-            synchronizationCounts.Pending--;
-            synchronizationCounts.Ongoing++;
+            _activityLog.Add(entry);
+            _synchronizationCounts.Pending--;
+            _synchronizationCounts.Ongoing++;
             RefreshSynchronizationCounters();
             ActivityLogDataGrid.ScrollIntoView(entry);
         }
@@ -224,29 +224,29 @@ namespace FileSync
                 return;
             }
 
-            synchronizationCounts.Ongoing--;
+            _synchronizationCounts.Ongoing--;
             switch (status)
             {
                 case "Completed":
-                    synchronizationCounts.Success++;
+                    _synchronizationCounts.Success++;
                     switch (entry.Operation)
                     {
                         case SynchronizationOperation.New:
-                            synchronizationCounts.New++;
+                            _synchronizationCounts.New++;
                             break;
                         case SynchronizationOperation.Overwrite:
-                            synchronizationCounts.Overwritten++;
+                            _synchronizationCounts.Overwritten++;
                             break;
                         case SynchronizationOperation.Delete:
-                            synchronizationCounts.Deleted++;
+                            _synchronizationCounts.Deleted++;
                             break;
                     }
                     break;
                 case "Failed":
-                    synchronizationCounts.Failed++;
+                    _synchronizationCounts.Failed++;
                     break;
                 case "Skipped":
-                    synchronizationCounts.Skipped++;
+                    _synchronizationCounts.Skipped++;
                     break;
             }
 
@@ -292,18 +292,18 @@ namespace FileSync
             }
 
             using var cancellation = new CancellationTokenSource();
-            synchronizationCancellation = cancellation;
-            activityLog.Clear();
+            _synchronizationCancellation = cancellation;
+            _activityLog.Clear();
             ResetSynchronizationCounters();
             UpdateScanButton();
             try
             {
-                scanning = true;
-                await comparisonController.ScanAsync(source, destination);
-                scanning = false;
+                _scanning = true;
+                await _comparisonController.ScanAsync(source, destination);
+                _scanning = false;
                 cancellation.Token.ThrowIfCancellationRequested();
-                var sourceRows = comparisonController.SourceRows.ToArray();
-                var destinationRows = comparisonController.DestinationRows.ToArray();
+                var sourceRows = _comparisonController.SourceRows.ToArray();
+                var destinationRows = _comparisonController.DestinationRows.ToArray();
                 ResetSynchronizationCounters(FileSynchronizationService.GetPendingCount(sourceRows, destinationRows));
                 await Task.Run(() => FileSynchronizationService.RunAsync(source, destination, sourceRows, destinationRows,
                     entry => Dispatcher.Invoke(() => AppendSynchronizationEntry(entry)),
@@ -312,8 +312,8 @@ namespace FileSync
 
                 if (!cancellation.IsCancellationRequested)
                 {
-                    scanning = true;
-                    await comparisonController.ScanAsync(source, destination);
+                    _scanning = true;
+                    await _comparisonController.ScanAsync(source, destination);
                 }
             }
             catch (OperationCanceledException)
@@ -328,25 +328,25 @@ namespace FileSync
             }
             finally
             {
-                foreach (var entry in activityLog.Where(entry => entry.Status == "Running"))
+                foreach (var entry in _activityLog.Where(entry => entry.Status == "Running"))
                 {
                     UpdateSynchronizationEntry(entry, entry.Progress,
                         cancellation.IsCancellationRequested ? "Cancelled" : "Failed",
                         "Synchronization ended before this entry completed.");
                 }
 
-                scanning = false;
-                synchronizationCancellation = null;
+                _scanning = false;
+                _synchronizationCancellation = null;
                 UpdateScanButton();
             }
         }
 
         private void StopSynchronization(object sender, RoutedEventArgs e)
         {
-            synchronizationCancellation?.Cancel();
-            if (scanning)
+            _synchronizationCancellation?.Cancel();
+            if (_scanning)
             {
-                comparisonController.Clear();
+                _comparisonController.Clear();
             }
 
             UpdateScanButton();
@@ -360,15 +360,15 @@ namespace FileSync
                 return;
             }
 
-            scanning = true;
+            _scanning = true;
             UpdateScanButton();
             try
             {
-                await comparisonController.ScanAsync(SourcePathTextBox.Text, DestinationPathTextBox.Text);
+                await _comparisonController.ScanAsync(SourcePathTextBox.Text, DestinationPathTextBox.Text);
             }
             finally
             {
-                scanning = false;
+                _scanning = false;
                 UpdateScanButton();
             }
         }
@@ -400,14 +400,14 @@ namespace FileSync
             if (dialog.ShowDialog(this) == true)
             {
                 pathTextBox.Text = dialog.FolderName;
-                comparisonController.Clear();
+                _comparisonController.Clear();
                 UpdateScanButton();
             }
         }
 
         private void SwitchSides(object sender, RoutedEventArgs e)
         {
-            switchingPaths = true;
+            _switchingPaths = true;
             try
             {
                 (SourcePathTextBox.Text, DestinationPathTextBox.Text) =
@@ -415,17 +415,17 @@ namespace FileSync
             }
             finally
             {
-                switchingPaths = false;
+                _switchingPaths = false;
             }
 
-            comparisonController.SwitchSides();
+            _comparisonController.SwitchSides();
             UpdateScanButton();
         }
 
         protected override void OnClosed(EventArgs e)
         {
-            synchronizationCancellation?.Cancel();
-            comparisonController.Dispose();
+            _synchronizationCancellation?.Cancel();
+            _comparisonController.Dispose();
             base.OnClosed(e);
         }
     }

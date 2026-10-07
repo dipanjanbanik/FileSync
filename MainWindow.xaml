@@ -72,13 +72,13 @@
             </Grid.ColumnDefinitions>
 
             <TextBlock Grid.Row="0" Text="Source" VerticalAlignment="Center" Height="16" />
-            <TextBox x:Name="SourcePathTextBox" Grid.Column="1"
+            <TextBox Grid.Row="0" x:Name="SourcePathTextBox" Grid.Column="1"
                      Height="22" VerticalAlignment="Center" VerticalContentAlignment="Center"
                      Padding="3,0" AutomationProperties.Name="Source folder" TextChanged="FolderPathChanged" />
-            <Button x:Name="BrowseSourceButton" Grid.Column="2" Content="Browse"
-                    Style="{StaticResource BrowseButtonStyle}" Click="BrowseSource" Margin="10,4,10,4" />
+            <Button Grid.Row="0" x:Name="BrowseSourceButton" Grid.Column="2" Content="Browse"
+                                Style="{StaticResource BrowseButtonStyle}" Click="BrowseSource" Margin="10,4,10,4" />
 
-            <TextBlock Grid.Row="1" Text="Destination" VerticalAlignment="Center" Height="16" />
+            <TextBlock Grid.Column="0" Grid.Row="1" Text="Destination" VerticalAlignment="Center" Height="16" />
             <TextBox x:Name="DestinationPathTextBox" Grid.Row="1" Grid.Column="1"
                      Height="22" VerticalAlignment="Center" VerticalContentAlignment="Center"
                      Padding="3,0" AutomationProperties.Name="Destination folder" TextChanged="FolderPathChanged" />
@@ -113,7 +113,7 @@
                       ToolTip="{Binding SelectedItem.RuleSummary, RelativeSource={RelativeSource Self}}"
                       AutomationProperties.Name="Synchronization rule" />
 
-            <TextBlock Grid.Row="2" Text="View" VerticalAlignment="Center" Height="16" />
+            <TextBlock Grid.Column="0" Grid.Row="2" Text="View" VerticalAlignment="Center" Height="16" />
             <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3"
                         Orientation="Horizontal" VerticalAlignment="Center" Height="28">
                 <ComboBox x:Name="ViewFilterComboBox" Width="140" Height="28" SelectedIndex="0"
@@ -164,7 +164,7 @@
                         </StackPanel>
                     </DockPanel>
                 </Border>
-                <Border Grid.Column="1" BorderBrush="Black" BorderThickness="0,0,0,1" Padding="5,0,4,0">
+                <Border Grid.Row="0" Grid.Column="1" BorderBrush="Black" BorderThickness="0,0,0,1" Padding="5,0,4,0">
                     <DockPanel LastChildFill="False">
                         <TextBlock Text="Destination" VerticalAlignment="Center" />
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
@@ -188,7 +188,7 @@
                     </DockPanel>
                 </Border>
 
-                <Border Grid.Row="1" BorderBrush="Black" BorderThickness="0,0,1,0">
+                <Border Grid.Column="0" Grid.Row="1" BorderBrush="Black" BorderThickness="0,0,1,0">
                     <DataGrid x:Name="SourceFilesDataGrid" Style="{StaticResource ComparisonGridStyle}"
                               Sorting="SortComparisonTables" Loaded="ComparisonGridLoaded"
                               ScrollViewer.ScrollChanged="ComparisonGridScrollChanged"
