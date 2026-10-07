@@ -1,0 +1,47 @@
+name: Windows build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore solution
+        run: dotnet restore FileSync.slnx
+
+      - name: Build solution
+        run: dotnet build FileSync.slnx --configuration Release --no-restore
+
+      - name: ZIP LocalOutput
+        run: |
+          if (-not (Test-Path 'LocalOutput' -PathType Container)) {
+            throw 'The build did not create LocalOutput.'
+          }
+          $archive = Join-Path $env:RUNNER_TEMP 'FileSync-LocalOutput.zip'
+          Compress-Archive -Path 'LocalOutput' -DestinationPath $archive -CompressionLevel Optimal -Force
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: FileSync-Windows-Release
+          path: ${{ runner.temp }}/FileSync-LocalOutput.zip
+          if-no-files-found: error
+          compression-level: 0
